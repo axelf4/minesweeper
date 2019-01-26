@@ -15,29 +15,27 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class GdxGame extends ApplicationAdapter {
 	private SpriteBatch batch;
-	BoardRenderer boardRenderer;
 	private Stage stage;
 	private Skin skin;
-	Table table;
-	Label label;
-	Texture background;
+	private Label label;
 
 	@Override
-	public void create () {
+	public void create() {
+		Gdx.graphics.setContinuousRendering(false);
+
 		batch = new SpriteBatch();
 		stage = new Stage(new ScreenViewport());
 		Gdx.input.setInputProcessor(stage);
 		skin = new Skin(Gdx.files.internal("skin/uiskin.json"));
 
-		table = new Table();
+		Table table = new Table();
 		table.setFillParent(true);
-		table.setDebug(true);
 		stage.addActor(table);
 
-		background = new Texture("background.png");
+		Texture background = new Texture("background.png");
 		table.setBackground(new TextureRegionDrawable(new TextureRegion(background)));
 
-		boardRenderer = new BoardRenderer(stage, skin);
+		BoardRenderer boardRenderer = new BoardRenderer(stage, skin);
 		table.add(boardRenderer).expand().fill().row();
 		stage.setScrollFocus(boardRenderer);
 
@@ -53,8 +51,8 @@ public class GdxGame extends ApplicationAdapter {
 	}
 
 	@Override
-	public void render () {
-		Gdx.gl.glClearColor(1, 1, 1, 1);
+	public void render() {
+		Gdx.gl.glClearColor(0, 1, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
 		label.setText("Hello: " + Gdx.graphics.getFramesPerSecond());
@@ -62,9 +60,9 @@ public class GdxGame extends ApplicationAdapter {
 		stage.act(Gdx.graphics.getDeltaTime());
 		stage.draw();
 	}
-	
+
 	@Override
-	public void dispose () {
+	public void dispose() {
 		batch.dispose();
 		stage.dispose();
 		skin.dispose();

@@ -48,7 +48,7 @@ public class FastBoardBuilder {
 						if (--currNumMines <= 0) {
 							break outer;
 						}
-					} else if (z <= 1.06f * chance){
+					} else if (z <= 1.5f * chance){
 						available.add(new Coord(x, y));
 					}
 				}
