@@ -1,15 +1,13 @@
 buildscript {
     repositories {
-        mavenLocal()
-        mavenCentral()
-        maven { url "https://plugins.gradle.org/m2/" }
-        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
         jcenter()
         google()
+        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.3.0'
+        classpath 'com.android.tools.build:gradle:3.3.1'
     }
 }
 
@@ -21,12 +19,10 @@ allprojects {
     ext {
         appName = "minesweeper"
         gdxVersion = '1.9.9'
-        roboVMVersion = '2.3.1'
     }
 
     repositories {
-        mavenLocal()
-        mavenCentral()
+        jcenter()
         google()
         maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
         maven { url "https://oss.sonatype.org/content/repositories/releases/" }
@@ -64,9 +60,12 @@ project(":core") {
 
     dependencies {
         compile "com.badlogicgames.gdx:gdx:$gdxVersion"
+        testImplementation 'org.junit.jupiter:junit-jupiter-api:5.1.0'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.1.0'
     }
 }
 
 tasks.eclipse.doLast {
     delete ".project"
 }
+

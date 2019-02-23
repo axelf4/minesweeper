@@ -1,4 +1,4 @@
-package axel.mines;
+package minesweeper;
 
 import com.badlogic.gdx.Application;
 import com.badlogic.gdx.Gdx;

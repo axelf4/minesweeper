@@ -1,10 +1,8 @@
-package axel.mines.desktop;
+package minesweeper.desktop;
 
-import axel.mines.GdxGame;
+import minesweeper.GdxGame;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
 import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
-
-import java.io.IOException;
 
 public class DesktopLauncher {
 	public static void main (String[] arg) {

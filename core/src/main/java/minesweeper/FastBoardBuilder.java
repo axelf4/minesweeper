@@ -1,14 +1,11 @@
-package axel.mines;
+package minesweeper;
 
 import com.badlogic.gdx.utils.Array;
 
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.*;
-import java.util.concurrent.*;
 
 public class FastBoardBuilder {
 	private final byte[][] field;
