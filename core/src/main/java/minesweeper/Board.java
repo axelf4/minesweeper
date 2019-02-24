@@ -5,8 +5,10 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.Objects;
 import java.util.Random;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public final class Board implements Cloneable {
 	public static final int NEIGHBOURING_MASK = 0xF;
@@ -90,9 +92,7 @@ public final class Board implements Cloneable {
 			for (int y = 0; y < getHeight(); ++y) {
 				if ((getTile(x, y) & MINE_BIT) == 0) continue;
 				++mines;
-				for (final Coord neighbour : getNeighbouringTiles(x, y)) {
-					++field[neighbour.x][neighbour.y];
-				}
+				getNeighbouringTiles(x, y).forEach(c -> ++field[c.x][c.y]);
 			}
 		}
 		System.out.println("Finished calculating mine counts. minCount: " + mines);
@@ -341,11 +341,19 @@ public final class Board implements Cloneable {
 		return c.x < 0 || c.x >= getWidth() || c.y < 0 || c.y >= getHeight();
 	}
 
-	public Coord[] getNeighbouringTiles(int x, int y) {
-		return Arrays.stream(new Coord[]{new Coord(x - 1, y - 1), new Coord(x, y - 1), new Coord(x + 1, y - 1),
-				new Coord(x - 1, y), new Coord(x + 1, y),
-				new Coord(x - 1, y + 1), new Coord(x, y + 1), new Coord(x + 1, y + 1)})
-				.filter(c -> !isOutOfBounds(c)).toArray(Coord[]::new);
+	/**
+	 * Returns a stream of the neighbours of the specified coordinate.
+	 *
+	 * @param x The x-component of the coordinate.
+	 * @param y The y-component of the coordinate.
+	 * @return A stream of the coordinates of the neighbouring tiles.
+	 */
+	public Stream<Coord> getNeighbouringTiles(int x, int y) {
+		return IntStream.rangeClosed(x > 0 ? x - 1 : x, x < getWidth() - 1 ? x + 1 : x)
+				.mapToObj(cx -> IntStream.rangeClosed(y > 0 ? y - 1 : y, y < getHeight() - 1 ? y + 1 : y)
+						.filter(cy -> cx != x || cy != y)
+						.mapToObj(cy -> new Coord(cx, cy)))
+				.flatMap(Function.identity());
 	}
 
 	@Override

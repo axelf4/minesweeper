@@ -17,6 +17,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ActorGestureListener;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class BoardRenderer extends Widget implements EventListener {
 	private static final int TILE_SIZE = 32;
@@ -210,7 +211,7 @@ public class BoardRenderer extends Widget implements EventListener {
 			throw new IllegalArgumentException();
 
 		final int neighbouringMines = board.getNeighbouringMineCount(x, y);
-		final long neighbouringFlags = Arrays.stream(board.getNeighbouringTiles(x, y))
+		final long neighbouringFlags = board.getNeighbouringTiles(x, y)
 				.filter(c -> (board.getTile(c) & Board.FLAG_BIT) != 0).count();
 
 		return neighbouringFlags == neighbouringMines;
@@ -272,7 +273,7 @@ public class BoardRenderer extends Widget implements EventListener {
 		if ((tileType & Board.REVEALED_BIT) != 0) {
 			// Chord
 			if (shouldClearAround(board, c.x, c.y)) {
-				Board.ClearTileResult clearResult = board.clearTiles(board.getNeighbouringTiles(c.x, c.y));
+				Board.ClearTileResult clearResult = board.clearTiles(board.getNeighbouringTiles(c.x, c.y).toArray(Coord[]::new));
 				board = clearResult.board;
 				if (board.getRemainingTiles() == 0) {
 					onWin();

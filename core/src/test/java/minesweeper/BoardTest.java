@@ -2,6 +2,11 @@ package minesweeper;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.stream.Collectors;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static minesweeper.Board.MINE_BIT;
 import static minesweeper.Board.REVEALED_BIT;
@@ -34,5 +39,10 @@ public class BoardTest {
 				{REVEALED_BIT, REVEALED_BIT, 1 | REVEALED_BIT, 1 | REVEALED_BIT},
 				{REVEALED_BIT, REVEALED_BIT, REVEALED_BIT, REVEALED_BIT},
 		}, 3), result.board);
+	}
+
+	@Test
+	void testGetNeighbouringTiles() {
+		assertEquals(new HashSet<>(Arrays.asList(new Coord(2, 2), new Coord(3, 2), new Coord(2, 3))), b.getNeighbouringTiles(3, 3).collect(Collectors.toSet()));
 	}
 }
