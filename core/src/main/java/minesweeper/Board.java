@@ -3,7 +3,10 @@ package minesweeper;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.Objects;
 import java.util.Random;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public final class Board implements Cloneable {
 	public static final int NEIGHBOURING_MASK = 0xF;
@@ -343,6 +346,19 @@ public final class Board implements Cloneable {
 				new Coord(x - 1, y), new Coord(x + 1, y),
 				new Coord(x - 1, y + 1), new Coord(x, y + 1), new Coord(x + 1, y + 1)})
 				.filter(c -> !isOutOfBounds(c)).toArray(Coord[]::new);
+	}
+
+	@Override
+	public int hashCode() {
+		return 31 * Objects.hash(left) + Arrays.hashCode(field);
+	}
+
+	@Override
+	public String toString() {
+		return Arrays.stream(field).map(col -> IntStream.range(0, col.length)
+				.map(i -> col[i])
+				.mapToObj(c -> "" + ((c & MINE_BIT) == 0 ? Character.forDigit(c & NEIGHBOURING_MASK, 10) : 'X')).collect(Collectors.joining()))
+				.collect(Collectors.joining("\n"));
 	}
 
 	public static final class ClearTileResult {
