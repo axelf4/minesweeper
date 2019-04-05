@@ -27,18 +27,16 @@ public class BoardTest {
 
 	@Test
 	void testClearTilesGivenBoardCorrect() {
-		Board.ClearTileResult result = b.clearTiles(new Coord(2, 1));
-		assertEquals(1, result.minX);
-		assertEquals(0, result.minY);
-		assertEquals(4, result.maxX);
-		assertEquals(4, result.maxY);
+		Board board = new Board(b);
+		Board.ClearTileResult result = board.clearTiles(new Coord(2, 1));
+		assertEquals(new Board.Bounds(1, 0, 4, 4), result.dirtyRegion);
 		assertFalse(result.wasMine);
 		assertEquals(new Board(new byte[][]{
 				{MINE_BIT, 1, 2, 1 | MINE_BIT},
 				{1 | REVEALED_BIT, 1 | REVEALED_BIT, 2 | REVEALED_BIT, 1 | MINE_BIT},
 				{REVEALED_BIT, REVEALED_BIT, 1 | REVEALED_BIT, 1 | REVEALED_BIT},
 				{REVEALED_BIT, REVEALED_BIT, REVEALED_BIT, REVEALED_BIT},
-		}, 3), result.board);
+		}, 3), board);
 	}
 
 	@Test

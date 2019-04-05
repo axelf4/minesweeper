@@ -1,8 +1,6 @@
 package minesweeper;
 
-import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.Deque;
 import java.util.Objects;
 import java.util.Random;
 import java.util.function.Function;
@@ -11,37 +9,44 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public final class Board implements Cloneable {
-	public static final int NEIGHBOURING_MASK = 0xF;
+	private static final int NEIGHBOURING_MASK = 0xF;
 	public static final int MINE_BIT = 1 << 4;
 	/**
 	 * Cleared.
 	 */
 	public static final int REVEALED_BIT = 1 << 5;
 	public static final int FLAG_BIT = 1 << 6;
-	public static final int EMPTY_MASK = ~(MINE_BIT | REVEALED_BIT | FLAG_BIT);
 
+	/**
+	 * A two-dimensional array of bit fields representing the field.
+	 * <p>
+	 * A square with both the revealed and flagged bits set is only cleared.
+	 */
 	private final byte[][] field;
 	/**
-	 * Number of remaining tiles to be cleared.
+	 * Number of remaining mine-free squares.
 	 */
-	private final int left;
+	private int remaining;
 
 	public Board(Board b) {
 		field = new byte[b.getWidth()][b.getHeight()];
 		for (int i = 0; i < field.length; ++i)
 			System.arraycopy(b.field[i], 0, field[i], 0, field[0].length);
-		left = b.left;
+		remaining = b.remaining;
 	}
 
-	public Board(byte[][] field, int left) {
+	public Board(byte[][] field, int remaining) {
 		this.field = field;
-		this.left = left;
+		this.remaining = remaining;
 	}
 
 	public static Board generate(int width, int height, int numMines) {
-		byte[][] field = new byte[width][height];
 		Random random = new Random();
-
+		long seed = System.currentTimeMillis();
+		System.out.println("Using seed: " + seed);
+		random.setSeed(seed);
+		int remaining = width * height - numMines;
+		byte[][] field = new byte[width][height];
 		while (numMines > 0) {
 			int x = random.nextInt(width), y = random.nextInt(height);
 			if (field[x][y] != 0) continue;
@@ -49,8 +54,7 @@ public final class Board implements Cloneable {
 			--numMines;
 		}
 
-		int left = width * height - numMines;
-		Board result = new Board(field, left);
+		Board result = new Board(field, remaining);
 		result.countNeighbouringMines();
 		return result;
 	}
@@ -74,7 +78,7 @@ public final class Board implements Cloneable {
 	}
 
 	public int getRemainingTiles() {
-		return left;
+		return remaining;
 	}
 
 	public Board clone() throws CloneNotSupportedException {
@@ -87,254 +91,21 @@ public final class Board implements Cloneable {
 	}
 
 	public void countNeighbouringMines() {
-		int mines = 0;
 		for (int x = 0; x < getWidth(); ++x) {
 			for (int y = 0; y < getHeight(); ++y) {
 				if ((getTile(x, y) & MINE_BIT) == 0) continue;
-				++mines;
 				getNeighbouringTiles(x, y).forEach(c -> ++field[c.x][c.y]);
 			}
 		}
-		System.out.println("Finished calculating mine counts. minCount: " + mines);
 	}
 
 	public byte getNeighbouringMineCount(int x, int y) {
 		return (byte) (field[x][y] & NEIGHBOURING_MASK);
 	}
 
-	public Board toggleFlag(int x, int y) {
-		final Board copy = new Board(this);
-		int tile = getTile(x, y);
-		if ((tile & REVEALED_BIT) == 0) {
-			copy.field[x][y] ^= FLAG_BIT;
-		}
-		return copy;
-	}
-
-	/*
-	 * Flood fill algorithm:
-	 * start on tile that has no neighbouring mines.
-	 * move up in corner
-	 * mark top left as revealed
-	 */
-
-	private static final int FLOOD_MASK = NEIGHBOURING_MASK | REVEALED_BIT | FLAG_BIT;
-
-	private Coord scanTopLeftCorner(int x, int y) {
-		for (; ; ) {
-			if (y > 0 && x > 0 && getTile(x - 1, y - 1) == 0) {
-				--x;
-				--y;
-			} else if (x > 0 && getTile(x - 1, y) == 0) --x;
-			else if (y > 0 && getTile(x, y - 1) == 0) --y;
-			else break;
-		}
-		return new Coord(x, y);
-	}
-
-	/*void regionFloodFill(Region region, int regionIndex, int x, int y) {
-			final Deque<Coord> stack = new ArrayDeque<>();
-			// In upper-left corner
-			stack.push(scanTopLeftCorner(x, y));
-
-			do {
-				final Coord c = stack.pop();
-				x = c.x;
-				y = c.y;
-
-				int lastRowLength = 0;
-				rowLoop:
-				do {
-					// Store the start coordinates of the row
-					int sx = x, rowLength = 0;
-
-					if (lastRowLength != 0) {
-						if (tileRegions[x][y] != 0) {
-							// Handle case like |***|
-							//                  | **|
-							do if (--lastRowLength == 0) break rowLoop; while (tileRegions[++x][y] != 0);
-							sx = x;
-						} else {
-							// If row has gotten wider on the left
-							// | **|
-							// |*X*|
-
-							for (; x > 0 && tileRegions[x - 1][y] == 0; ++rowLength, ++lastRowLength) {
-								tileRegions[--x][y] = regionIndex;
-								region.tiles.add(new Coord(x, y));
-
-								// If cavities appeared above
-								// |Y **|
-								// |*X**|
-								if (y > 0 && tileRegions[x][y - 1] == 0)
-									stack.addLast(scanTopLeftCorner(x, y - 1));
-							}
-						}
-					}
-
-					// Scan across to the right in the current row
-					for (; sx < getWidth() && tileRegions[sx][y] == 0; ++rowLength, ++sx) {
-						tileRegions[sx][y] = regionIndex;
-						region.tiles.add(new Coord(sx, y));
-					}
-
-					if (rowLength < lastRowLength + 1) {
-						// |*****|
-						// |*** *|
-						for (int end = x + lastRowLength; ++sx <= end && sx < getWidth();)
-							if (tileRegions[sx][y] == 0)
-								stack.addLast(new Coord(sx, y));
-					} else if (rowLength > lastRowLength && y > 0) {
-						// |*** *|
-						// |**** |
-						// If the row is longer than the last we must look up
-						for (int ux = x + lastRowLength; ++ux < sx; )
-							if (tileRegions[ux][y - 1] == 0)
-								stack.addLast(scanTopLeftCorner(ux, y - 1));
-					}
-
-					lastRowLength = rowLength;
-				} while (lastRowLength != 0 && ++y < getHeight());
-			} while (!stack.isEmpty());
-		}
-		*/
-
-	private void floodFill(final Coord c) {
-		int x = c.x;
-		int y = c.y;
-
-		// If top-left tile is not flagged
-		if (x > 0 && y > 0
-				&& (getTile(x - 1, y - 1) & FLAG_BIT) == 0) {
-			field[x - 1][y - 1] |= REVEALED_BIT;
-		}
-
-		int lastRowLength = 0;
-
-		rowLoop:
-		do {
-			int rowLength = 0, sx = x;
-
-			if (lastRowLength > 0) {
-				if (getTile(x, y) != 0) {
-					// Handle
-					// |***|
-					// | **|
-					do {
-						if (--lastRowLength == 0) break rowLoop;
-					} while (++x < getWidth() && getTile(x, y) == 0);
-					sx = x;
-				} else {
-					// Handle
-					// | **|
-					// |***|
-					for (; x > 0; ++rowLength, ++lastRowLength) {
-						int tile = getTile(--x, y);
-						if ((tile & FLAG_BIT) != 0) break;
-						field[x][y] |= REVEALED_BIT;
-						if ((tile & NEIGHBOURING_MASK) != 0) break;
-						if (y > 0 && (getTile(x, y - 1) & FLOOD_MASK) == 0) {
-							floodFill(scanTopLeftCorner(x, y - 1));
-						}
-					}
-				}
-			}
-
-			// Scan across to the right
-			for (; ; ) {
-				field[sx][y] |= REVEALED_BIT;
-				++sx;
-				++rowLength;
-				if (sx < getWidth()) break;
-				int tile = getTile(sx, y);
-				if ((tile & FLAG_BIT) != 0) break;
-				if ((tile & NEIGHBOURING_MASK) != 0) {
-					field[sx][y] |= REVEALED_BIT;
-					break;
-				}
-			}
-
-			if (rowLength < lastRowLength + 1) {
-				// |*****|
-				// |*** *|
-				for (int end = x + lastRowLength; ++sx <= end && sx < getWidth(); ) {
-					if ((getTile(sx, y) & FLOOD_MASK) == 0) {
-						floodFill(new Coord(sx, y));
-					}
-				}
-			} else if (rowLength > lastRowLength && y > 0) {
-				// |*** *|
-				// |**** |
-				// If the row is longer than the last we must look up
-				for (int ux = x + lastRowLength + 1; ux++ < sx && ux < getWidth(); ) {
-					if ((getTile(ux, y - 1) & FLOOD_MASK) == 0) {
-						floodFill(scanTopLeftCorner(ux, y - 1));
-					}
-				}
-			}
-
-			// TODO check lower right corner
-
-			lastRowLength = rowLength;
-		} while (lastRowLength != 0 && ++y < getHeight());
-	}
-
-	public ClearTileResult clearTiles(final Coord... coords) {
-		if (coords.length == 0) return new ClearTileResult(this, 0, 0, 0, 0, false);
-
-		int minX = coords[0].x, minY = coords[0].y, maxX = coords[0].x, maxY = coords[0].y;
-
-		final Deque<Coord> stack = new ArrayDeque<>();
-		for (Coord c : coords) {
-			final int type = getTile(c.x, c.y);
-			if ((type & (MINE_BIT | FLAG_BIT)) == MINE_BIT)
-				return new ClearTileResult(this, minX, minY, maxX, maxY, true);
-			else if ((type & (MINE_BIT | REVEALED_BIT | FLAG_BIT)) == 0)
-				stack.push(c);
-		}
-		if (stack.isEmpty()) return new ClearTileResult(this, minX, minY, maxX, maxY, false);
-
-		byte[][] copy = new byte[getWidth()][getHeight()];
-		for (int i = 0; i < field.length; ++i)
-			System.arraycopy(field[i], 0, copy[i], 0, field[0].length);
-		int left = this.left;
-
-			/*while (!stack.isEmpty()) {
-				final Coord c = stack.pop();
-
-				if ((getTile(c) & NEIGHBOURING_MASK) == 0) {
-					floodFill(scanTopLeftCorner(c.x, c.y));
-				} else {
-					copy.field[c.x][c.y] |= REVEALED_BIT;
-				}
-			}*/
-
-		while (!stack.isEmpty()) {
-			final Coord c = stack.pop();
-			if (c.x < 0 || c.y < 0 || c.x >= getWidth() || c.y >= getHeight()) continue;
-
-			if ((copy[c.x][c.y] & ~EMPTY_MASK) == 0) {
-				copy[c.x][c.y] |= REVEALED_BIT;
-				--left;
-				if (c.x < minX) minX = c.x;
-				if (c.y < minY) minY = c.y;
-				if (c.x + 1 > maxX) maxX = c.x + 1;
-				if (c.y + 1 > maxY) maxY = c.y + 1;
-
-				if (getNeighbouringMineCount(c.x, c.y) == 0) {
-					stack.push(new Coord(c.x - 1, c.y - 1));
-					stack.push(new Coord(c.x, c.y - 1));
-					stack.push(new Coord(c.x + 1, c.y - 1));
-					stack.push(new Coord(c.x - 1, c.y));
-					stack.push(new Coord(c.x + 1, c.y));
-					stack.push(new Coord(c.x - 1, c.y + 1));
-					stack.push(new Coord(c.x, c.y + 1));
-					stack.push(new Coord(c.x + 1, c.y + 1));
-				}
-			}
-		}
-
-		return new ClearTileResult(new Board(copy, left), minX, minY, maxX, maxY, false);
+	public void toggleFlag(int x, int y) {
+		if ((getTile(x, y) & REVEALED_BIT) == 0)
+			field[x][y] ^= FLAG_BIT;
 	}
 
 	public boolean isOutOfBounds(Coord c) {
@@ -358,7 +129,7 @@ public final class Board implements Cloneable {
 
 	@Override
 	public int hashCode() {
-		return 31 * Objects.hash(left) + Arrays.hashCode(field);
+		return 31 * Objects.hash(remaining) + Arrays.hashCode(field);
 	}
 
 	@Override
@@ -369,33 +140,243 @@ public final class Board implements Cloneable {
 				.collect(Collectors.joining("\n"));
 	}
 
-	public static final class ClearTileResult {
-		public final Board board;
+	public static final class Bounds {
+		public static final Bounds ZERO_SIZE = new Bounds(0, 0, 0, 0);
 		/**
-		 * The inclusive X-coordinate of the start of the dirty region.
+		 * The inclusive X-coordinate of the start of the region.
 		 */
-		public final int minX,
+		public int minX,
 		/**
-		 * The inclusive Y-coordinate of the start of the dirty region.
+		 * The inclusive Y-coordinate of the start of the region.
 		 */
 		minY,
 		/**
-		 * The exclusive X-coordinate of the end of the dirty region.
+		 * The exclusive X-coordinate of the end of the region.
 		 */
 		maxX,
 		/**
-		 * The exclusive Y-coordinate of the end of the dirty region.
+		 * The exclusive Y-coordinate of the end of the region.
 		 */
 		maxY;
-		public final boolean wasMine;
 
-		private ClearTileResult(Board board, int minX, int minY, int maxX, int maxY, boolean wasMine) {
-			this.board = board;
+		public Bounds(int minX, int minY, int maxX, int maxY) {
 			this.minX = minX;
 			this.minY = minY;
 			this.maxX = maxX;
 			this.maxY = maxY;
+		}
+
+		public Bounds(Coord c) {
+			this(c.x, c.y, c.x + 1, c.y + 1);
+		}
+
+		public static Bounds combine(Bounds a, Bounds b) {
+			return new Bounds(Math.min(a.minX, b.minX), Math.min(a.minY, b.minY),
+					Math.max(a.maxX, b.maxX), Math.max(a.maxY, b.maxY));
+		}
+
+		@Override
+		public String toString() {
+			return "Bounds{minX=" + minX + ", minY=" + minY + ", maxX=" + maxX + ", maxY=" + maxY + '}';
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			Bounds bounds = (Bounds) o;
+			return minX == bounds.minX && minY == bounds.minY && maxX == bounds.maxX && maxY == bounds.maxY;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(minX, minY, maxX, maxY);
+		}
+	}
+
+	public static final class ClearTileResult {
+		/**
+		 * The tile region that needs to be redrawn.
+		 */
+		public final Bounds dirtyRegion;
+		/**
+		 * Whether a mine was detonated by the clear.
+		 */
+		public final boolean wasMine;
+
+		private ClearTileResult(Bounds dirtyRegion, boolean wasMine) {
+			this.dirtyRegion = dirtyRegion;
 			this.wasMine = wasMine;
 		}
+	}
+
+	/**
+	 * Scans for the top-left corner of the continuous region of plain squares.
+	 * <p>
+	 * Assumes that the specified square is empty.
+	 *
+	 * @param x The starting x-coordinate.
+	 * @param y The starting y-coordinate.
+	 * @return The coordinate of the top-left corner.
+	 */
+	private Coord scanTopLeftCorner(int x, int y) {
+		assert getTile(x, y) == 0 : "The specified square must be empty.";
+		for (; ; ) {
+			if (y > 0 && x > 0 && (field[x - 1][y - 1] & ~FLAG_BIT) == 0) {
+				--x;
+				--y;
+			} else if (x > 0 && (field[x - 1][y] & ~FLAG_BIT) == 0) --x;
+			else if (y > 0 && (field[x][y - 1] & ~FLAG_BIT) == 0) --y;
+			else break;
+		}
+		return new Coord(x, y);
+	}
+
+	/**
+	 * Recursively reveal squares using a flood fill algorithm.
+	 * <p>
+	 * The following invariants must be upheld:
+	 * <ul>
+	 * <li>The starting coordinate c must be an empty square.
+	 * <li>And c should effectively be a top-left corner.
+	 * <li>All empty squares that should be touched are not already revealed.
+	 * </ul>
+	 *
+	 * @param c The starting coordinate.
+	 * @return The bounds of the dirty area.
+	 */
+	private Bounds floodFill(Coord c) {
+		assert !isOutOfBounds(c) : "The specified coordinate is out of bounds";
+		assert getTile(c) == 0 : "The square is not empty.";
+		int x = c.x, y = c.y;
+		Bounds b = new Bounds(c);
+
+		if (x > 0 && (field[x - 1][y] & REVEALED_BIT) == 0) {
+			field[x - 1][y] |= REVEALED_BIT; // Left of top row
+			--remaining;
+			--b.minX;
+		}
+		if (y > 0) {
+			if ((field[x][y - 1] & REVEALED_BIT) == 0) {
+				field[x][y - 1] |= REVEALED_BIT; // Above start of first row
+				--remaining;
+			}
+			if (x > 0 && (field[x - 1][y - 1] & REVEALED_BIT) == 0) {
+				field[x - 1][y - 1] |= REVEALED_BIT; // Top-left corner
+				--remaining;
+			}
+			--b.minY;
+		}
+
+		int prx = x; // Previous x-coordinate of rightmost empty square
+		rowLoop:
+		do {
+			int rx = x;
+			if (/* Was row above */ x != prx) {
+				// See if left edge of this row moved relative to the previous row
+				if ((field[x][y] & ~FLAG_BIT) != 0) {
+					// |***|
+					// | **| This row starts more to the right than the last
+					do {
+						if ((field[x][y] & REVEALED_BIT) == 0) {
+							field[x][y] |= REVEALED_BIT;
+							--remaining;
+						}
+						if (x >= prx) break rowLoop; // Scanned whole bottom of previous row
+					} while (x + 1 < getWidth() && (field[++x][y] & ~FLAG_BIT) != 0);
+					rx = x--;
+				} else {
+					// | **|
+					// |*X*| This row extends further to the left than the last
+					for (; x > 0; ) {
+						if ((field[--x][y] & REVEALED_BIT) == 0) {
+							field[x][y] |= REVEALED_BIT;
+							--remaining;
+						}
+						// If extends above to the left (valid since row existed above)
+						if ((field[x][y - 1] & ~FLAG_BIT) == 0)
+							b = Bounds.combine(b, floodFill(scanTopLeftCorner(x, y - 1)));
+						else if ((field[x][y - 1] & REVEALED_BIT) == 0) {
+							field[x][y - 1] |= REVEALED_BIT;
+							--remaining;
+						}
+						if ((field[x][y] & ~(REVEALED_BIT | FLAG_BIT)) != 0) break;
+					}
+				}
+			} else if (x > 0) --x;
+
+			// At this point x is at the leftmost revealed square and this row
+			// is guaranteed to contain empty squares
+			// Scan across to the right (include the non-emty square to the right of the row)
+			for (; ; ++rx) {
+				if ((field[rx][y] & REVEALED_BIT) == 0) {
+					field[rx][y] |= REVEALED_BIT;
+					--remaining;
+				}
+				if ((field[rx][y] & ~(REVEALED_BIT | FLAG_BIT)) != 0 || rx + 1 >= getWidth()) break;
+			}
+			// Now rx is the rightmost x-coordinate touched on this row
+
+			if (rx < prx) {
+				// |*** |
+				// |*X *| This row is shorter than last; might reach further right
+				for (int end = Math.min(prx, getWidth() - 1), sx = rx; ++sx <= end; ) {
+					if ((field[sx][y] & ~FLAG_BIT) == 0) b = Bounds.combine(b, floodFill(new Coord(sx, y)));
+					else if ((field[sx][y] & REVEALED_BIT) == 0) {
+						field[sx][y] |= REVEALED_BIT;
+						--remaining;
+					}
+				}
+			} else if (rx > prx && y > 0) {
+				// |** *|
+				// |***X| If this row is longer than the last; could extend upwards to the right
+				for (int ux = prx + 1; ux <= rx; ++ux) {
+					if ((field[ux][y - 1] & ~FLAG_BIT) == 0)
+						b = Bounds.combine(b, floodFill(scanTopLeftCorner(ux, y - 1)));
+					else if ((field[ux][y - 1] & REVEALED_BIT) == 0) {
+						field[ux][y - 1] |= REVEALED_BIT;
+						--remaining;
+					}
+				}
+			}
+
+			if (x < b.minX) b.minX = x;
+			if (rx >= b.maxX) b.maxX = rx + 1;
+			prx = rx;
+		} while (++y < getHeight());
+
+		if (y >= b.maxY) b.maxY = Math.min(y + 1, getHeight());
+		return b;
+	}
+
+	/**
+	 * Clear a tile.
+	 * <p>
+	 * Mutates this {@link Board} in-place.
+	 * Even if a mine was stumbled upon the flood fill will still complete.
+	 * Any flags on squares that get revealed should be considered removed.
+	 *
+	 * @param coords The coordinates of the squares to clear.
+	 * @return The result of the operation.
+	 */
+	public ClearTileResult clearTiles(Coord... coords) {
+		boolean wasMine = Arrays.stream(coords).anyMatch(c -> (getTile(c) & (FLAG_BIT | MINE_BIT)) == MINE_BIT);
+		Bounds bounds = Arrays.stream(coords)
+				.peek(c -> {
+					if (isOutOfBounds(c))
+						throw new IllegalArgumentException("Specified coordinate is out of bounds.");
+				})
+				.filter(c -> (getTile(c) & (REVEALED_BIT | FLAG_BIT)) == 0)
+				.map(c -> {
+					if (getTile(c) != 0) {
+						field[c.x][c.y] |= REVEALED_BIT;
+						--remaining;
+						return new Bounds(c);
+					}
+					return floodFill(scanTopLeftCorner(c.x, c.y)); // If empty: recursively clear adjacent squares
+				})
+				.reduce(Bounds::combine).orElse(Bounds.ZERO_SIZE);
+
+		return new ClearTileResult(bounds, wasMine);
 	}
 }

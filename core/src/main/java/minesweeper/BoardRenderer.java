@@ -16,17 +16,13 @@ import com.badlogic.gdx.scenes.scene2d.ui.Widget;
 import com.badlogic.gdx.scenes.scene2d.utils.ActorGestureListener;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.stream.Collectors;
 
 public class BoardRenderer extends Widget implements EventListener {
 	private static final int TILE_SIZE = 32;
-	private static final int WIDTH = 30, HEIGHT = 16, NUM_MINES = 99;
-	// private static final int WIDTH = 10000, HEIGHT = 10000, NUM_MINES = 20000000;
 	private Texture tileTexture;
 	private ShaderProgram shader;
 	private Texture sprites;
-	private Board board;
+	private final Board board;
 	private ByteBuffer pixels;
 	private Vector2 viewOffset = new Vector2();
 	private float scale = 1.0f;
@@ -49,34 +45,32 @@ public class BoardRenderer extends Widget implements EventListener {
 		}
 	}
 
-	public BoardRenderer(Stage stage, Skin skin) {
-		init();
+	public BoardRenderer(Stage stage, Skin skin, Board board) {
 		setTouchable(Touchable.enabled);
 		addListener(this);
 		addListener(new BoardGestureListener());
 		this.stage = stage;
 		this.skin = skin;
-	}
+		this.board = board;
 
-	private void init() {
 		sprites = new Texture("tilesheet.png");
-		// board = Board.generate(WIDTH, HEIGHT, NUM_MINES);
-		board = new FastBoardBuilder(WIDTH, HEIGHT, NUM_MINES).build();
 
-		pixels = ByteBuffer.allocateDirect(3 * WIDTH * HEIGHT);
-		tileTexture = new Texture(WIDTH, HEIGHT, Pixmap.Format.RGB888);
+		int w = board.getWidth(), h = board.getHeight();
+
+		pixels = ByteBuffer.allocateDirect(3 * w * h);
+		tileTexture = new Texture(w, h, Pixmap.Format.RGB888);
 		tileTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest);
-		for (int i = 0; i < 3 * WIDTH * HEIGHT; i += 3) {
+		for (int i = 0; i < 3 * w * h; i += 3) {
 			final TileSprite sprite = TileSprite.HIDDEN;
 			pixels.put(i, (byte) sprite.x);
 			pixels.put(i + 1, (byte) sprite.y);
 			pixels.put(i + 2, (byte) 0);
 			i += 3;
 		}
-		Gdx.gl.glTexImage2D(GL20.GL_TEXTURE_2D, 0, GL20.GL_RGB, WIDTH, HEIGHT, 0, GL20.GL_RGB, GL20.GL_UNSIGNED_BYTE, pixels);
+		Gdx.gl.glTexImage2D(GL20.GL_TEXTURE_2D, 0, GL20.GL_RGB, w, h, 0, GL20.GL_RGB, GL20.GL_UNSIGNED_BYTE, pixels);
 
 		// Start with the board centered
-		viewOffset.add(new Vector2(WIDTH, HEIGHT).scl(TILE_SIZE).scl(scale).scl(0.5f));
+		viewOffset.add(new Vector2(w, h).scl(TILE_SIZE).scl(scale).scl(0.5f));
 
 		final String vertexShader = "attribute vec4 a_position;\n"
 				+ "attribute vec4 a_color;\n"
@@ -119,7 +113,7 @@ public class BoardRenderer extends Widget implements EventListener {
 		shader.begin();
 		shader.setUniformf("tileSize", TILE_SIZE);
 		shader.setUniformf("inverseTileSize", 1f / TILE_SIZE, 1f / TILE_SIZE);
-		shader.setUniformf("inverseTileTextureSize", 1f / WIDTH, 1f / HEIGHT);
+		shader.setUniformf("inverseTileTextureSize", 1f / w, 1f / h);
 		shader.setUniformf("inverseSpriteTextureSize", 1f / sprites.getWidth(), 1f / sprites.getHeight());
 		shader.setUniformi("sprites", 1);
 		shader.end();
@@ -157,15 +151,15 @@ public class BoardRenderer extends Widget implements EventListener {
 			/* 16 */ TileSprite.HIDDEN,
 			TileSprite.HIDDEN, TileSprite.HIDDEN, TileSprite.HIDDEN, TileSprite.HIDDEN, TileSprite.HIDDEN,
 			TileSprite.HIDDEN, TileSprite.HIDDEN, TileSprite.HIDDEN,
-			null, null,
-			null, null, null, null, null,
+			null, null, null, null, null, null, null,
 			/* 32 */ TileSprite.REVEALED,
 			TileSprite.DIGIT_1, TileSprite.DIGIT_2, TileSprite.DIGIT_3, TileSprite.DIGIT_4,
 			TileSprite.DIGIT_5, TileSprite.DIGIT_6, TileSprite.DIGIT_7, TileSprite.DIGIT_8,
-			/* 41 */ null, null, null, null, null, null, null, /* 48: revealed with mine */ null,
-			/* 49 */ null, null, null, null, null, null, null, null,
-			/* 57 */ null, null, null,
-			/* 60 */ null, null, null, null,
+			/* 41 */ null, null, null, null, null, null, null,
+			/* 48: revealed with mine */ TileSprite.DIGIT_8,
+			/* 49 */ TileSprite.DIGIT_8, TileSprite.DIGIT_8, TileSprite.DIGIT_8, TileSprite.DIGIT_8,
+			TileSprite.DIGIT_8, TileSprite.DIGIT_8, TileSprite.DIGIT_8, TileSprite.DIGIT_8,
+			/* 57 */ null, null, null, null, null, null, null,
 			/* 64 FLAG */ TileSprite.FLAG,
 			TileSprite.FLAG, TileSprite.FLAG, TileSprite.FLAG, TileSprite.FLAG,
 			TileSprite.FLAG, TileSprite.FLAG, TileSprite.FLAG, TileSprite.FLAG,
@@ -173,6 +167,10 @@ public class BoardRenderer extends Widget implements EventListener {
 			/* 80: flag with mine */ TileSprite.FLAG,
 			TileSprite.FLAG, TileSprite.FLAG, TileSprite.FLAG, TileSprite.FLAG,
 			TileSprite.FLAG, TileSprite.FLAG, TileSprite.FLAG, TileSprite.FLAG,
+			/* 89 */ null, null, null, null, null, null, null,
+			/* 96: Revealed flag */ TileSprite.REVEALED,
+			TileSprite.DIGIT_1, TileSprite.DIGIT_2, TileSprite.DIGIT_3, TileSprite.DIGIT_4,
+			TileSprite.DIGIT_5, TileSprite.DIGIT_6, TileSprite.DIGIT_7, TileSprite.DIGIT_8,
 	};
 
 	private void updateRegion(Board board, int x1, int y1, int x2, int y2) {
@@ -184,6 +182,7 @@ public class BoardRenderer extends Widget implements EventListener {
 		for (int y = y1; y < y2; ++y) {
 			for (int x = x1; x < x2; ++x) {
 				TileSprite sprite = spriteByTile[board.getTile(x, y)];
+				if (sprite == null) System.out.println(board.getTile(x, y));
 				assert sprite != null;
 
 				pixels.put(i, (byte) sprite.x);
@@ -253,7 +252,8 @@ public class BoardRenderer extends Widget implements EventListener {
 		CLICK, SET_FLAG;
 
 		static MouseIntent getIntentFromTapButton(int button) {
-			if (Gdx.app.getType() == Application.ApplicationType.Android) return MouseIntent.SET_FLAG;
+			if (Gdx.app.getType() == Application.ApplicationType.Android)
+				return MouseIntent.SET_FLAG;
 			switch (button) {
 				default:
 				case Input.Buttons.LEFT:
@@ -267,6 +267,7 @@ public class BoardRenderer extends Widget implements EventListener {
 	private void performMouseAction(float x, float y, MouseIntent intent) {
 		y = getHeight() - y;
 		final Coord c = getCoordUnderCursor(x, y);
+		System.out.println("Clicking coord: " + c);
 		if (board.isOutOfBounds(c)) return;
 
 		final int tileType = board.getTile(c);
@@ -274,28 +275,26 @@ public class BoardRenderer extends Widget implements EventListener {
 			// Chord
 			if (shouldClearAround(board, c.x, c.y)) {
 				Board.ClearTileResult clearResult = board.clearTiles(board.getNeighbouringTiles(c.x, c.y).toArray(Coord[]::new));
-				board = clearResult.board;
+				Board.Bounds bounds = clearResult.dirtyRegion;
+				updateRegion(board, bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
 				if (board.getRemainingTiles() == 0) {
 					onWin();
 				} else if (clearResult.wasMine) {
 					onGameOver();
-				} else {
-					updateRegion(board, clearResult.minX, clearResult.minY, clearResult.maxX, clearResult.maxY);
 				}
 			}
 		} else {
 			if (intent == MouseIntent.CLICK) {
 				Board.ClearTileResult clearResult = board.clearTiles(c);
-				board = clearResult.board;
+				Board.Bounds bounds = clearResult.dirtyRegion;
+				updateRegion(board, bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
 				if (board.getRemainingTiles() == 0) {
 					onWin();
 				} else if (clearResult.wasMine) {
 					onGameOver();
-				} else {
-					updateRegion(board, clearResult.minX, clearResult.minY, clearResult.maxX, clearResult.maxY);
 				}
 			} else if (intent == MouseIntent.SET_FLAG) {
-				board = board.toggleFlag(c.x, c.y);
+				board.toggleFlag(c.x, c.y);
 				updateRegion(board, c.x, c.y, c.x + 1, c.y + 1);
 			}
 		}

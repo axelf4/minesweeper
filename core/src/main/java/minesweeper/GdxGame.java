@@ -14,6 +14,10 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 public class GdxGame extends ApplicationAdapter {
+	// private static final int WIDTH = 30, HEIGHT = 16, NUM_MINES = 99;
+	private static final int WIDTH = 30, HEIGHT = 16, NUM_MINES = 50;
+	// private static final int WIDTH = 10000, HEIGHT = 10000, NUM_MINES = 20000000;
+
 	private SpriteBatch batch;
 	private Stage stage;
 	private Skin skin;
@@ -35,7 +39,10 @@ public class GdxGame extends ApplicationAdapter {
 		Texture background = new Texture("background.png");
 		table.setBackground(new TextureRegionDrawable(new TextureRegion(background)));
 
-		BoardRenderer boardRenderer = new BoardRenderer(stage, skin);
+		// Board board = Board.generate(WIDTH, HEIGHT, NUM_MINES);
+		Board board = new FastBoardBuilder(WIDTH, HEIGHT, NUM_MINES).build();
+
+		BoardRenderer boardRenderer = new BoardRenderer(stage, skin, board);
 		table.add(boardRenderer).expand().fill().row();
 		stage.setScrollFocus(boardRenderer);
 
@@ -55,7 +62,7 @@ public class GdxGame extends ApplicationAdapter {
 		Gdx.gl.glClearColor(0, 1, 0, 1);
 		Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-		label.setText("Hello: " + Gdx.graphics.getFramesPerSecond());
+		label.setText("FPS: " + Gdx.graphics.getFramesPerSecond());
 
 		stage.act(Gdx.graphics.getDeltaTime());
 		stage.draw();
