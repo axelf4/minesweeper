@@ -8,6 +8,7 @@ import java.util.concurrent.RecursiveAction;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class FastBoardBuilder {
+	private final Board board;
 	private final byte[][] field;
 	private final int numMines;
 	/** Chance of a mine at every tile. */
@@ -15,7 +16,9 @@ public class FastBoardBuilder {
 
 	FastBoardBuilder(int width, int height, int numMines) {
 		field = new byte[width][height];
+		board = new Board(field, width * height - numMines);
 		this.numMines = numMines;
+
 		chance = (float) numMines / (width * height);
 	}
 
@@ -42,6 +45,7 @@ public class FastBoardBuilder {
 
 					if (z <= chance) {
 						field[x][y] |= Board.MINE_BIT;
+						board.getNeighbouringTiles(x, y).forEach(c -> ++field[c.x][c.y]);
 						if (--currNumMines <= 0) {
 							break outer;
 						}
@@ -56,6 +60,7 @@ public class FastBoardBuilder {
 				Coord c = available.get(i);
 				available.removeIndex(i);
 				field[c.x][c.y] |= Board.MINE_BIT;
+				board.getNeighbouringTiles(c.x, c.y).forEach(coord -> ++field[coord.x][coord.y]);
 			}
 		}
 
@@ -78,8 +83,6 @@ public class FastBoardBuilder {
 		ForkJoinPool pool = new ForkJoinPool();
 		pool.invoke(forkGen);
 
-		Board board = new Board(field, field.length * field[0].length - numMines);
-		board.countNeighbouringMines();
 		return board;
 	}
 }

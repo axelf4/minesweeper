@@ -40,23 +40,27 @@ public final class Board implements Cloneable {
 		this.remaining = remaining;
 	}
 
+	/**
+	 * Generates a new Minesweeper board with the specified dimensions and number of mines.
+	 *
+	 * @param width    The width of the generated board.
+	 * @param height   The height of the generated board.
+	 * @param numMines The number of mines.
+	 * @return The generated board.
+	 */
 	public static Board generate(int width, int height, int numMines) {
-		Random random = new Random();
-		long seed = System.currentTimeMillis();
-		System.out.println("Using seed: " + seed);
-		random.setSeed(seed);
-		int remaining = width * height - numMines;
 		byte[][] field = new byte[width][height];
+		Board board = new Board(field, width * height - numMines);
+		Random random = new Random();
 		while (numMines > 0) {
 			int x = random.nextInt(width), y = random.nextInt(height);
 			if (field[x][y] != 0) continue;
 			field[x][y] |= MINE_BIT;
+			board.getNeighbouringTiles(x, y).forEach(c -> ++field[c.x][c.y]);
 			--numMines;
 		}
 
-		Board result = new Board(field, remaining);
-		result.countNeighbouringMines();
-		return result;
+		return board;
 	}
 
 	public int getWidth() {
@@ -88,15 +92,6 @@ public final class Board implements Cloneable {
 	@Override
 	public boolean equals(Object obj) {
 		return obj instanceof Board && Arrays.deepEquals(field, ((Board) obj).field);
-	}
-
-	public void countNeighbouringMines() {
-		for (int x = 0; x < getWidth(); ++x) {
-			for (int y = 0; y < getHeight(); ++y) {
-				if ((getTile(x, y) & MINE_BIT) == 0) continue;
-				getNeighbouringTiles(x, y).forEach(c -> ++field[c.x][c.y]);
-			}
-		}
 	}
 
 	public byte getNeighbouringMineCount(int x, int y) {
