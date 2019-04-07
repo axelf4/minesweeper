@@ -3,7 +3,6 @@ package minesweeper;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.stream.Collectors;
 
@@ -42,5 +41,12 @@ public class BoardTest {
 	@Test
 	void testGetNeighbouringTiles() {
 		assertEquals(new HashSet<>(Arrays.asList(new Coord(2, 2), new Coord(3, 2), new Coord(2, 3))), b.getNeighbouringTiles(3, 3).collect(Collectors.toSet()));
+	}
+
+	@Test
+	public void testClearMineNotReducingNonMineCount() {
+		Board board = new Board(b);
+		board.clearTiles(new Coord(0, 0));
+		assertEquals(b.getRemainingTiles(), board.getRemainingTiles());
 	}
 }

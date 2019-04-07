@@ -365,10 +365,10 @@ public final class Board implements Cloneable {
 				.map(c -> {
 					if (getTile(c) != 0) {
 						field[c.x][c.y] |= REVEALED_BIT;
-						--remaining;
+						if ((getTile(c) & MINE_BIT) == 0) --remaining;
 						return new Bounds(c);
-					}
-					return floodFill(scanTopLeftCorner(c.x, c.y)); // If empty: recursively clear adjacent squares
+					} else
+						return floodFill(scanTopLeftCorner(c.x, c.y)); // If empty: recursively clear adjacent squares
 				})
 				.reduce(Bounds::combine).orElse(Bounds.ZERO_SIZE);
 
