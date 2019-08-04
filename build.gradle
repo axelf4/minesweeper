@@ -1,13 +1,13 @@
 buildscript {
     repositories {
-        jcenter()
         google()
+        jcenter()
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://oss.sonatype.org/content/repositories/snapshots/" }
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.3.1'
+        classpath 'com.android.tools.build:gradle:3.4.2'
     }
 }
 
@@ -18,7 +18,7 @@ allprojects {
     version = '1.0'
     ext {
         appName = "minesweeper"
-        gdxVersion = '1.9.9'
+        gdxVersion = '1.9.10'
     }
 
     repositories {
