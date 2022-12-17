@@ -1,16 +1,13 @@
 package minesweeper.desktop;
 
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
 import minesweeper.GdxGame;
-import com.badlogic.gdx.backends.lwjgl.LwjglApplication;
-import com.badlogic.gdx.backends.lwjgl.LwjglApplicationConfiguration;
 
 public class DesktopLauncher {
 	public static void main (String[] arg) {
-		LwjglApplicationConfiguration config = new LwjglApplicationConfiguration();
-		config.title = "JadenSweeper.exe";
-		config.useHDPI = true;
-		/*config.foregroundFPS = 0;
-		config.vSyncEnabled = false;*/
-		new LwjglApplication(new GdxGame(), config);
+		Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
+		config.setTitle("JadenSweeper.exe");
+		new Lwjgl3Application(new GdxGame(), config);
 	}
 }

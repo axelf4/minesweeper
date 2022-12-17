@@ -110,13 +110,12 @@ public class BoardRenderer extends Widget implements EventListener {
 		if (!shader.isCompiled()) {
 		}
 		System.out.println(shader.getLog());
-		shader.begin();
+		shader.bind();
 		shader.setUniformf("tileSize", TILE_SIZE);
 		shader.setUniformf("inverseTileSize", 1f / TILE_SIZE, 1f / TILE_SIZE);
 		shader.setUniformf("inverseTileTextureSize", 1f / w, 1f / h);
 		shader.setUniformf("inverseSpriteTextureSize", 1f / sprites.getWidth(), 1f / sprites.getHeight());
 		shader.setUniformi("sprites", 1);
-		shader.end();
 	}
 
 	@Override
@@ -309,12 +308,12 @@ public class BoardRenderer extends Widget implements EventListener {
 
 		switch (event.getType()) {
 			case scrolled:
-				return scrolled(tmpCoords.x, tmpCoords.y, event.getScrollAmount());
+				return scrolled(tmpCoords.x, tmpCoords.y, event.getScrollAmountY());
 		}
 		return false;
 	}
 
-	private boolean scrolled(float x, float y, int amount) {
+	private boolean scrolled(float x, float y, float amount) {
 		final float oldScale = scale;
 		scale += amount * 0.3f;
 		if (scale <= 0) scale = 1e-4f;
